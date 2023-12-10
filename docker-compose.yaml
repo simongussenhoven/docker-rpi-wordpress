@@ -1,43 +1,56 @@
-version: "3.9" #using docker compose version 3.9
-
+#https://www.youtube.com/watch?v=gEceSAJI_3s
+version: "3.9"
 services:
-  #Defining mysql service
-  mysqldb:
-    image: mysql
-    environment: #feel free to change these variables as needed
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: wordpressdb #name of database to be created on start of image startup
-      MYSQL_USER: wordpressuser #this user will be created/granted superuser permissions for the database(wordpressdb)specified above
-      MYSQL_PASSWORD: wordpresspass
-    restart: always #this ensures when server reboots container resttarts
-    volumes:
-      - mysqldb_data:/var/lib/mysql #This will help persist mysqldb container data generated at '/var/lib/mysql' in named volume mysqldb_data
-    networks:
-      - mysitenet
-
-  #Defining wordpress service
-  wordpress:
-    image: wordpress #use latest wordpress image from docker hub
-    restart: always #this ensures when server reboots container restarts
-    depends_on:
-      - mysqldb
+  database:
+    mem_limit: 2048m
+    image: mariadb:10.6.4-focal
+    restart: unless-stopped
     ports:
-      - 8080:80 #expose container internal port 80 to host(raspberry pi) pot 8080
+      - 3306:3306
+    env_file: .env
     environment:
-      WORDPRESS_DB_HOST: mysqldb #mysql db hostname
-      WORDPRESS_DB_NAME: wordpressdb #mysql database to be used for wordpress database
-      WORDPRESS_DB_USER: wordpressuser #should be same as MYSQL_USER
-      WORDPRESS_DB_PASSWORD: wordpresspass #should be same as MYSQL_PASSWORD
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+
     volumes:
-      - wordpress_data:/var/www/html #This will help persist wordpress container data generated at '/var/www/html' in named volume wordpress_data
+      - db-data:/var/lib/mysql
     networks:
-      - mysitenet
+      - wordpress-network
 
-#Define volumes
+  phpmyadmin:
+    depends_on:
+      - database
+    image: phpmyadmin/phpmyadmin
+    restart: unless-stopped
+    ports:
+      - 8081:80
+    environment:
+      PMA_HOST: database
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+    networks:
+      - wordpress-network
+  wordpress:
+    depends_on:
+      - database
+    image: wordpress:6.2.2-apache
+    restart: unless-stopped
+    ports:
+      - 8080:80
+    env_file: .env
+    environment:
+      WORDPRESS_DB_HOST: database:3306
+      WORDPRESS_DB_NAME: "${MYSQL_DATABASE}"
+      WORDPRESS_DB_USER: "${MYSQL_USER}"
+      WORDPRESS_DB_PASSWORD: "${MYSQL_PASSWORD}"
+    networks:
+      - wordpress-network
+    volumes:
+      - ./:/var/www/html
+
 volumes:
-  mysqldb_data:
-  wordpress_data:
+  db-data:
 
-#Define networks
 networks:
-  mysitenet:
+  wordpress-network:
+    driver: bridge
