@@ -1,9 +1,7 @@
-#https://www.youtube.com/watch?v=gEceSAJI_3s
 version: "3.9"
 services:
   database:
-    mem_limit: 2048m
-    image: mariadb:10.6.4-focal
+    image: mariadb:latest
     restart: unless-stopped
     ports:
       - 3306:3306
@@ -12,7 +10,6 @@ services:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
       MYSQL_USER: "${MYSQL_USER}"
       MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
-
     volumes:
       - db-data:/var/lib/mysql
     networks:
@@ -21,7 +18,7 @@ services:
   phpmyadmin:
     depends_on:
       - database
-    image: phpmyadmin/phpmyadmin
+    image: phpmyadmin:latest
     restart: unless-stopped
     ports:
       - 8081:80
@@ -30,6 +27,7 @@ services:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
     networks:
       - wordpress-network
+
   wordpress:
     depends_on:
       - database
